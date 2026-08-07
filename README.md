@@ -8,10 +8,10 @@
 
 [![WHATWG: forgiving-base64](https://img.shields.io/badge/base64-WHATWG%20forgiving%20base64-success)](https://infra.spec.whatwg.org/#forgiving-base64-decode)
 [![WPT: base64.json](https://img.shields.io/badge/WPT-base64.json%2080%2F80%20vectors-purple)](https://github.com/web-platform-tests/wpt)
-[![UTF-8: WHATWG](https://img.shields.io/badge/UTF%80-WHATWG%20TextEncoder%2FDecoder-success)](https://encoding.spec.whatwg.org/)
+[![UTF-8: WHATWG](https://img.shields.io/badge/UTF-8-WHATWG%20TextEncoder%2FDecoder-success)](https://encoding.spec.whatwg.org/)
 [![Adobe: Creative Suite](https://img.shields.io/badge/Adobe%20-Creative%20Suite-red?logo=adobe&logoColor=white)](https://extendscript.docsforadobe.dev/)
 [![Engine](https://img.shields.io/badge/ExtendScript-ES3-green)](#compatibility)
-[![Size](https://img.shields.io/badge/runtime-13.0%20KB-orange)](#installation)
+[![Size](https://img.shields.io/badge/runtime-15.8%20KB-orange)](#installation)
 [![License: GPL-3.0-or-later](https://img.shields.io/badge/license-GPL%203.0--or--later-blue)](https://www.gnu.org/licenses/gpl-3.0.html)
 
 </div>
@@ -38,8 +38,8 @@ The codecs are **byte-identical to the browser/Node native implementations by co
 - **Fast UTF-8 encode via the engine's native escaping functions** (`unescape(encodeURIComponent(s))`), measured ~50× faster than the hand-rolled encoder on 450 KB in the live engine (28.6 ms vs 1456 ms). Falls back to the hand-rolled encoder on lone surrogates (where `encodeURIComponent` throws `URIError`), so the contract never changes.
 - **Memoized, two-tier**: an 8-entry repeat cache (≤32 KiB inputs) keyed by the exact input skips the codec entirely on repeat payloads, plus a **big-payload tier** (≤2 MiB inputs, 2 entries) keyed by a short sample-hash with a full-string collision check (~1 µs on 1 MB — native memcmp). Big-memo hits measured ~1 ms for 1 MB (vs 1.51 s cold, ~1500×). NUL-bearing and `__proto__` inputs skip the small tier but are handled by the hash tier (its key is the hash, not the input).
 - **Strict-charset, engine-safe**: every string scan is `charCodeAt`-based (the engine's `charAt` returns `""` for U+0000); output is built with arrays + `join` (loop concatenation is quadratic in this engine); no mixed bitwise `|`/`&` chains (the engine mis-compiles them — see below).
-- **No runtime dependencies**: the production bundle is one file (facade + codec), ~19 KB.
-- **Two builds**: full (`ESB64.jsx` — all lanes, capabilities, install, benchmark) and runtime (`vendor-esb64-runtime.js` — `atob`/`btoa` only, 13.0 KB) for per-eval injection.
+- **No runtime dependencies**: the production bundle is one file (facade + codec), ~28 KB.
+- **Two builds**: full (`ESB64.jsx` — all lanes, capabilities, install, benchmark) and runtime (`vendor-esb64-runtime.js` — `atob`/`btoa` only, 15.8 KB) for per-eval injection.
 
 ---
 
@@ -48,7 +48,7 @@ The codecs are **byte-identical to the browser/Node native implementations by co
 | | **Runtime build** | **Full build** |
 |---|---|---|
 | Files | `vendor-esb64-runtime.js` | `vendor-esb64.js`, `ESB64.jsx` |
-| Size | 13.0 KB | 25.1 KB / 25.0 KB |
+| Size | 15.8 KB | 28.6 KB / 28.2 KB |
 | API | `atob`, `btoa` only | `atob`, `btoa`, `encodeUtf8`, `decodeUtf8`, `utf8Encode`, `utf8Decode`, `capabilities`, `install`, `benchmark`, `classifyGlobalB64` |
 | Installs global `atob`/`btoa` | yes | yes |
 | Best for | per-eval injection, anything that only needs base64 | plugins/scripts that also need the UTF-8 codec, capability probing, or benchmarks |
@@ -212,7 +212,7 @@ Quick in-module benchmark. Lanes: `btoa` (latin1), `atob` (latin1), `utf8Encode`
 |---|---|
 | RFC 4648 §10 vectors | 7/7 |
 | WPT `fetch/data-urls/resources/base64.json` (80 vectors, transcribed verbatim) | **80/80** |
-| Differential fuzz vs V8 native `atob`/`btoa` (140,000+ iterations, 7 lanes) | **0 divergences** |
+| Differential fuzz vs V8 native `atob`/`btoa` (144,000+ checks, 9 lanes) | **0 divergences** |
 | Live engine (Illustrator 30.6.0 / ExtendScript 4.5.6) | **66/66** vectors |
 
 **WHATWG TextEncoder/Decoder** ([encoding spec](https://encoding.spec.whatwg.org/)):
@@ -358,9 +358,8 @@ npm run typecheck      # tsc --noEmit (strict)
 npm run build          # dist/ESB64.jsx + vendor-esb64.js + vendor-esb64-runtime.js + esb64-core.esm.mjs
 npm test               # 411 Node assertions (WPT corpus + differential vs native + utf8)
 npm run fuzz           # 140,000 differential fuzz checks vs V8 native + Buffer + TextDecoder
-npm run live-verify    # 65-vector battery inside real Illustrator via the COM tool (agent-skills)
+npm run live-verify    # 66-vector battery inside real Illustrator via the COM tool (agent-skills)
 npm run benchmark      # Node-side benchmark pipeline + large-payload timing
-node tests/svg-bounds... (n/a)
 ```
 
 Repository layout:

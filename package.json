@@ -22,7 +22,7 @@
   "license": "GPL-3.0-or-later",
   "repository": {
     "type": "git",
-    "url": "https://github.com/thelabcorner/esb64.git"
+    "url": "https://github.com/thelabcorner/es-b64.git"
   },
   "keywords": [
     "base64",
