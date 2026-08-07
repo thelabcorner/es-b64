@@ -8,7 +8,7 @@
 
 [![WHATWG: forgiving-base64](https://img.shields.io/badge/base64-WHATWG%20forgiving%20base64-success)](https://infra.spec.whatwg.org/#forgiving-base64-decode)
 [![WPT: base64.json](https://img.shields.io/badge/WPT-base64.json%2080%2F80%20vectors-purple)](https://github.com/web-platform-tests/wpt)
-[![UTF-8: WHATWG](https://img.shields.io/badge/UTF-8-WHATWG%20TextEncoder%2FDecoder-success)](https://encoding.spec.whatwg.org/)
+[![UTF-8: WHATWG](https://img.shields.io/badge/UTF--8-WHATWG%20TextEncoder%2FDecoder-success)](https://encoding.spec.whatwg.org/)
 [![Adobe: Creative Suite](https://img.shields.io/badge/Adobe%20-Creative%20Suite-red?logo=adobe&logoColor=white)](https://extendscript.docsforadobe.dev/)
 [![Engine](https://img.shields.io/badge/ExtendScript-ES3-green)](#compatibility)
 [![Size](https://img.shields.io/badge/runtime-15.8%20KB-orange)](#installation)
@@ -85,7 +85,48 @@ Not a single canonical "must accept / must-reject" project like [nst/JSONTestSui
 3. **WPT `html/webappapis/atob/base64.any.js`** — behavior tests: btoa over all 258 code points, WebIDL coercions, atob IDL cases.
 4. Implementation test suites (Go `encoding/base64`, Rust `base64` crate, Python stdlib, `base64-js`).
 
-ESB64's test harness (Node) differential-fuzzes against the **native V8 `atob`/`btoa`** (140,000+ checks across 7 lanes, zero divergences) and runs the full WPT `base64.json` corpus. The live-engine verification (`node tests/esb64-live-verify.mjs`) re-runs a curated battery inside real Illustrator through the COM tool and compares against Node-side expectations computed from the same bundled core.
+ESB64's test harness (Node) differential-fuzzes against the **native V8 `atob`/`btoa`** (144,000+ checks across 9 lanes, zero divergences) and runs the full WPT `base64.json` corpus. The live-engine verification (`node tests/esb64-live-verify.mjs`) re-runs a curated battery inside real Illustrator through the COM tool and compares against Node-side expectations computed from the same bundled core.
+
+---
+
+## Get the Release
+
+<div align="center">
+
+**All production bundles ship as GitHub release assets — this repo holds sources. Grab the runnable builds from the [Releases page](https://github.com/thelabcorner/es-b64/releases).**
+
+[![Latest stable](https://img.shields.io/github/v/release/thelabcorner/es-b64?style=for-the-badge&logo=github&label=Latest%20stable)](https://github.com/thelabcorner/es-b64/releases/latest)
+[![Release date](https://img.shields.io/github/release-date/thelabcorner/es-b64?style=for-the-badge&label=Released)](https://github.com/thelabcorner/es-b64/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/thelabcorner/es-b64/total?style=for-the-badge&label=Downloads)](https://github.com/thelabcorner/es-b64/releases)
+
+</div>
+
+**How it works, in three steps:**
+
+1. Open the [Releases page](https://github.com/thelabcorner/es-b64/releases).
+2. Pick the **latest stable** tag (top of the list — today that is `v1.0.0`).
+3. Download the asset that matches your use case:
+
+| You are... | Take this release | And this asset |
+|---|---|---|
+| A script/plugin that needs `atob` / `btoa` | **Latest stable** | `vendor-esb64.js` — drop-in vendor, gap-fills the globals |
+| A facade-only script (leave the globals alone) | Latest stable | `ESB64.jsx` — bannerless IIFE, defines `ESB64` |
+| High-frequency automation / per-eval injection | Latest stable | `vendor-esb64-runtime.js` — 15.8 KB, atob/btoa only |
+| Node.js testing / tooling | Latest stable | `esb64-core.esm.mjs` — ESM core (19 exports) |
+| A fix that isn't released yet | Pre-release / `master` | Build from source: `npm run build` |
+
+> **Rule of thumb: start with the latest stable tag.** Every release asset is
+> produced by `npm run build` from the exact tagged commit, and no release is
+> tagged before it passes the full gate: 411 Node assertions, the WPT
+> `base64.json` corpus 80/80, 144,000 differential fuzz checks vs V8, and the
+> 66-vector live engine battery (Illustrator 30.6.0).
+
+> **Staying current:** releases follow [SemVer](https://semver.org/)
+> (`v1.0.0`): patch = bug fix, minor = new feature, major = breaking change.
+> Watch the repository → *Releases* to get notified, and read the release
+> notes before upgrading across a major bump.
+
+Then follow [Installation](#installation) for drop-in usage snippets.
 
 ---
 
