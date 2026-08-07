@@ -55,6 +55,25 @@ The codecs are **byte-identical to the browser/Node native implementations by co
 
 **Rule of thumb:** if your script only ever calls `atob` and `btoa`, use the runtime build. Reach for the full build only when you need `encodeUtf8`/`decodeUtf8`, `capabilities()`, `install()`, or `benchmark()`.
 
+### Runnable examples
+
+The `examples/` folder ships five runnable, live-verified ExtendScript scripts:
+each one loads the needed build relative to its own location (override with
+the `ESB64_DIST` env var), runs self-checking demonstrations, and returns a
+JSON report as its last-statement value — so they work both from File >
+Scripts and from COM/automation (`eval --file examples/01-atob-btoa.jsx`).
+Run `npm run build` first so `dist/` exists.
+
+| Example | Build | Demonstrates |
+|---|---|---|
+| `01-atob-btoa.jsx` | runtime | gap-fill global install, RFC 4648 vectors, latin1 gate, memo |
+| `02-forgiving-atob.jsx` | runtime | WHATWG forgiving-base64: whitespace, padding, WPT vectors |
+| `03-utf8-codec.jsx` | full | `encodeUtf8`/`decodeUtf8`/`utf8Encode`/`utf8Decode`, malformed-input rules |
+| `04-svg-data-url-batch.jsx` | full | export artboard → SVG → base64 data URL → byte-identical decode |
+| `05-edge-cases.jsx` | full | NUL, `__proto__`-shaped payloads, 0..255 bytes, lone surrogates |
+
+Each script writes its report to `%TEMP%\esb64example-0N-report.json` as well.
+
 ---
 
 ## Is there a base64 test corpus like JSONTestSuite?
@@ -351,6 +370,7 @@ esb64/
   src/            TypeScript core (ES5 target, ES3-safe; tsc strict clean)
   tests/          Node harnesses (custom, no framework)
   probes/         live ExtendScript probes (capability, benchmark, big-payload)
+  examples/       runnable ExtendScript examples (see "Runnable examples")
   dist/           generated bundles (gitignored; produced by npm run build)
 ```
 
