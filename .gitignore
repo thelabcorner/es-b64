@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.idea/
+*.log
+__pycache__/
+*.pyc
+tests/.esb64-test.bundle.mjs
+tests/.esb64-live-verify.bundle.mjs
+tests/.esb64-fuzz.bundle.mjs

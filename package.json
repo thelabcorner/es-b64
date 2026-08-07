@@ -1,0 +1,36 @@
+{
+  "name": "esb64",
+  "version": "1.0.0",
+  "description": "ESB64 — base64 (atob/btoa) polyfill + UTF-8 codec library for ExtendScript (ES3) engines",
+  "type": "module",
+  "main": "dist/esb64-core.esm.mjs",
+  "scripts": {
+    "build": "node esb64-build.mjs",
+    "test": "node tests/esb64-test.mjs",
+    "typecheck": "npx tsc --noEmit -p .",
+    "fuzz": "node tests/fuzz.mjs",
+    "benchmark": "node tests/benchmark.mjs",
+    "live-verify": "node tests/esb64-live-verify.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.1",
+    "typescript": "^5.8.3"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "license": "GPL-3.0-or-later",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/thelabcorner/esb64.git"
+  },
+  "keywords": [
+    "base64",
+    "atob",
+    "btoa",
+    "utf8",
+    "extendscript",
+    "es3",
+    "polyfill"
+  ]
+}
