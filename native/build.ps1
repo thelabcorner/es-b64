@@ -3,7 +3,9 @@
 # substitutes in espk-b64.c). clang+lld with the ArcFit family flags
 # (-O3 -ffreestanding -fno-builtin -march=x86-64-v2 -mtune=generic -flto,
 # portable to any Windows x64 >= Win10 2015) when available; MSVC fallback
-# (both link /nodefaultlib /entry:DllMain).
+# (both link /nodefaultlib /entry:DllMain). The PE timestamp is fixed
+# (/timestamp:0, or /Brepro for MSVC) so rebuilds are byte-identical -
+# espack's vendor drift guard and the parity contract compare DLL bytes.
 # Usage: powershell -ExecutionPolicy Bypass -File build.ps1 [-Name ESB64Native2.dll]
 # Numbered output name: a loaded DLL stays locked until the host app exits
 # (LNK1104). Pass -Name to build an iteration without closing Illustrator.
@@ -83,7 +85,7 @@ if ($clang -and $lld -and (Test-Path $clang) -and (Test-Path $lld)) {
         -march=x86-64-v2 -mtune=generic -flto @incPaths -c "$src" -o "$obj"
     if ($LASTEXITCODE -ne 0) { throw "clang failed with exit $LASTEXITCODE" }
     & $lld -flavor link /dll /entry:DllMain /subsystem:windows /nodefaultlib `
-        /machine:x64 /out:"$out" "$obj" @libPaths kernel32.lib
+        /machine:x64 /timestamp:0 /out:"$out" "$obj" @libPaths kernel32.lib
     if ($LASTEXITCODE -ne 0) { throw "lld failed with exit $LASTEXITCODE" }
     $built = $true
 } elseif (Get-Command cl -ErrorAction SilentlyContinue) {
@@ -91,7 +93,7 @@ if ($clang -and $lld -and (Test-Path $clang) -and (Test-Path $lld)) {
     & cl /nologo /O2 /GS- /c "$src" /Fo:"$obj"
     if ($LASTEXITCODE -ne 0) { throw "cl failed with exit $LASTEXITCODE" }
     & link /dll /nodefaultlib /entry:DllMain /subsystem:windows /machine:x64 `
-        /out:"$out" "$obj" @libPaths kernel32.lib
+        /Brepro /out:"$out" "$obj" @libPaths kernel32.lib
     if ($LASTEXITCODE -ne 0) { throw "link failed with exit $LASTEXITCODE" }
     $built = $true
 } else {

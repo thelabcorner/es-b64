@@ -105,6 +105,7 @@ The codecs are **byte-identical to the browser/Node native implementations by co
 | A facade-only script (leave the globals alone) | Latest stable | `ESB64.jsx` — bannerless IIFE, defines `ESB64` |
 | High-frequency automation / per-eval injection | Latest stable | `vendor-esb64-runtime.js` — 15.8 KB, atob/btoa only |
 | A script that wants the native base64 lane | Latest stable | `ESB64.accel.jsx` — self-extracting accelerated bundle (minified: `ESB64.accel.min.jsx`) |
+| Embedding the native accelerator in your own espack bundle | Latest stable | `ESB64Native.dll` — freestanding WHATWG-exact accelerator (9,728 B) |
 | Node.js testing / tooling | Latest stable | `esb64-core.esm.mjs` — ESM core (19 exports) |
 | A fix that isn't released yet | Pre-release / `master` | Build from source: `npm run build` |
 
@@ -410,6 +411,9 @@ static 16 MiB BSS pool (zeroed, no file footprint), own
 -mtune=generic -flto` — the ArcFit family flags; the x86-64-v2 baseline runs
 on any Windows x64 >= Win10 2015, no AVX2/FMA requirement at process
 startup); MSVC fallback (`/O2 /GS-` + `/nodefaultlib /entry:DllMain`).
+The PE timestamp is fixed (`/timestamp:0` on lld, `/Brepro` on the MSVC
+fallback) so rebuilds are byte-identical — espack's vendor drift guard and
+the parity contract compare DLL bytes.
 
 **Optimizations** (bit-level/algorithmic, measured 2026-08-07): a 256-entry
 branchless classification table (valid 0-63 / whitespace -2 / '=' -3 /
