@@ -69,15 +69,15 @@ The codecs are **byte-identical to the browser/Node native implementations by co
 
 ## Which build should I use?
 
-| | **Runtime build** | **Full build** |
-|---|---|---|
-| Files | `vendor-esb64-runtime.js` | `vendor-esb64.js`, `ESB64.jsx` |
-| Size | 15.8 KB | 28.6 KB / 28.2 KB |
-| API | `atob`, `btoa` only | `atob`, `btoa`, `encodeUtf8`, `decodeUtf8`, `utf8Encode`, `utf8Decode`, `capabilities`, `install`, `benchmark`, `classifyGlobalB64` |
-| Installs global `atob`/`btoa` | yes | yes |
-| Best for | per-eval injection, anything that only needs base64 | plugins/scripts that also need the UTF-8 codec, capability probing, or benchmarks |
+| | **Runtime build** | **Full build** | **Accel build (recommended)** |
+|---|---|---|---|
+| Files | `vendor-esb64-runtime.js` | `vendor-esb64.js`, `ESB64.jsx` | `ESB64.accel.jsx` (minified: `ESB64.accel.min.jsx`) |
+| Size | 15.8 KB | 28.6 KB / 28.2 KB | 73.5 KB (44.6 KB minified) |
+| API | `atob`, `btoa` only | `atob`, `btoa`, `encodeUtf8`, `decodeUtf8`, `utf8Encode`, `utf8Decode`, `capabilities`, `install`, `benchmark`, `classifyGlobalB64` | the full facade; `atob`/`btoa` (+ `encodeLatin1`/`decodeLatin1`) swap to the native lane via `ESPAK.attach` — ES3-first, full fallback; `ESB64.acceleration` = `"native"` \| `"es3"` |
+| Installs global `atob`/`btoa` | yes | yes | no (facade + native swap only; use the vendor builds for global install) |
+| Best for | per-eval injection, anything that only needs base64 | plugins/scripts that also need the UTF-8 codec, capability probing, or benchmarks | single-file distribution with the native base64 lane (Windows x64) — the recommended default |
 
-**Rule of thumb:** if your script only ever calls `atob` and `btoa`, use the runtime build. Reach for the full build only when you need `encodeUtf8`/`decodeUtf8`, `capabilities()`, `install()`, or `benchmark()`.
+**Rule of thumb:** if your script only ever calls `atob` and `btoa`, use the runtime build. Reach for the full build when you need `encodeUtf8`/`decodeUtf8`, `capabilities()`, `install()`, or `benchmark()`. **For the native lane, take the accel build** — one self-extracting file, ES3-first, accelerated on Windows x64, no install steps.
 
 ---
 
