@@ -18,7 +18,31 @@
 
 ---
 
-> **From the same team: [ESON](https://github.com/thelabcorner/eson) — strict JSON for ExtendScript, and [ArcFit.dev](https://arcfit.dev) — deterministic arc warp for Illustrator.**
+> **From the same team: [ESON](https://github.com/thelabcorner/eson) — strict JSON for ExtendScript, ESARR — ES5 array methods, ESSTR — string trim, ESCHARS — native bulk byte ops, [ESPACK](https://github.com/thelabcorner/espack) — self-extracting ExternalObject bundles, ESOBF — obfuscation, and [ArcFit.dev](https://arcfit.dev) — deterministic arc warp for Illustrator.**
+
+---
+
+## Table of Contents
+
+- [Why ESB64?](#why-esb64)
+- [Features](#features)
+- [Which build should I use?](#which-build-should-i-use)
+- [Get the Release](#get-the-release)
+- [Installation](#installation)
+- [Quick Start](#quick-start)
+  - [Runnable examples](#runnable-examples)
+- [API Reference](#api-reference)
+- [Validation](#validation)
+- [Spec Conformance](#spec-conformance)
+- [Performance](#performance)
+  - [Native acceleration (ESB64.accel.jsx)](#native-acceleration-esb64acceljsx)
+- [Security Model](#security-model)
+- [Compatibility](#compatibility)
+- [Engine quirks that shaped the design](#engine-quirks-that-shaped-the-design)
+- [Development](#development)
+- [Repository layout](#repository-layout)
+- [Credits](#credits)
+- [License](#license)
 
 ---
 
@@ -55,38 +79,6 @@ The codecs are **byte-identical to the browser/Node native implementations by co
 
 **Rule of thumb:** if your script only ever calls `atob` and `btoa`, use the runtime build. Reach for the full build only when you need `encodeUtf8`/`decodeUtf8`, `capabilities()`, `install()`, or `benchmark()`.
 
-### Runnable examples
-
-The `examples/` folder ships five runnable, live-verified ExtendScript scripts:
-each one loads the needed build relative to its own location (override with
-the `ESB64_DIST` env var), runs self-checking demonstrations, and returns a
-JSON report as its last-statement value — so they work both from File >
-Scripts and from COM/automation (`eval --file examples/01-atob-btoa.jsx`).
-Run `npm run build` first so `dist/` exists.
-
-| Example | Build | Demonstrates |
-|---|---|---|
-| `01-atob-btoa.jsx` | runtime | gap-fill global install, RFC 4648 vectors, latin1 gate, memo |
-| `02-forgiving-atob.jsx` | runtime | WHATWG forgiving-base64: whitespace, padding, WPT vectors |
-| `03-utf8-codec.jsx` | full | `encodeUtf8`/`decodeUtf8`/`utf8Encode`/`utf8Decode`, malformed-input rules |
-| `04-svg-data-url-batch.jsx` | full | export artboard → SVG → base64 data URL → byte-identical decode |
-| `05-edge-cases.jsx` | full | NUL, `__proto__`-shaped payloads, 0..255 bytes, lone surrogates |
-
-Each script writes its report to `%TEMP%\esb64example-0N-report.json` as well.
-
----
-
-## Is there a base64 test corpus like JSONTestSuite?
-
-Not a single canonical "must accept / must-reject" project like [nst/JSONTestSuite](https://github.com/nst/JSONTestSuite). The de-facto standards corpora are:
-
-1. **RFC 4648 §10** — the canonical 7-vector sanity set (`f`, `fo`, `foo`, `foob`, `fooba`, `foobar`, and the empty string).
-2. **`web-platform-tests` `fetch/data-urls/resources/base64.json`** — 80 vectors (whitespace, padding rules, invalid characters) with expected byte arrays or must-throw, the corpus the WPT `atob()` tests run against in every browser. Transcribed verbatim into `tests/wpt-b64-corpus.ts`.
-3. **WPT `html/webappapis/atob/base64.any.js`** — behavior tests: btoa over all 258 code points, WebIDL coercions, atob IDL cases.
-4. Implementation test suites (Go `encoding/base64`, Rust `base64` crate, Python stdlib, `base64-js`).
-
-ESB64's test harness (Node) differential-fuzzes against the **native V8 `atob`/`btoa`** (144,000+ checks across 9 lanes, zero divergences) and runs the full WPT `base64.json` corpus. The live-engine verification (`node tests/esb64-live-verify.mjs`) re-runs a curated battery inside real Illustrator through the COM tool and compares against Node-side expectations computed from the same bundled core.
-
 ---
 
 ## Get the Release
@@ -95,16 +87,16 @@ ESB64's test harness (Node) differential-fuzzes against the **native V8 `atob`/`
 
 **All production bundles ship as GitHub release assets — this repo holds sources. Grab the runnable builds from the [Releases page](https://github.com/thelabcorner/es-b64/releases).**
 
-[![Latest stable](https://img.shields.io/github/v/release/thelabcorner/es-b64?style=for-the-badge&logo=github&label=Latest%20stable)](https://github.com/thelabcorner/es-b64/releases/latest)
-[![Release date](https://img.shields.io/github/release-date/thelabcorner/es-b64?style=for-the-badge&label=Released)](https://github.com/thelabcorner/es-b64/releases/latest)
-[![Downloads](https://img.shields.io/github/downloads/thelabcorner/es-b64/total?style=for-the-badge&label=Downloads)](https://github.com/thelabcorner/es-b64/releases)
+[![Latest stable](https://img.shields.io/github/v/release/thelabcorner/es-b64?label=Latest%20stable)](https://github.com/thelabcorner/es-b64/releases/latest)
+[![Release date](https://img.shields.io/github/release-date/thelabcorner/es-b64?label=Released)](https://github.com/thelabcorner/es-b64/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/thelabcorner/es-b64/total?label=Downloads)](https://github.com/thelabcorner/es-b64/releases)
 
 </div>
 
 **How it works, in three steps:**
 
 1. Open the [Releases page](https://github.com/thelabcorner/es-b64/releases).
-2. Pick the **latest stable** tag (top of the list — today that is `v1.0.0`).
+2. Pick the **latest stable** tag (top of the list — today that is `v1.1.0`).
 3. Download the asset that matches your use case:
 
 | You are... | Take this release | And this asset |
@@ -112,6 +104,7 @@ ESB64's test harness (Node) differential-fuzzes against the **native V8 `atob`/`
 | A script/plugin that needs `atob` / `btoa` | **Latest stable** | `vendor-esb64.js` — drop-in vendor, gap-fills the globals |
 | A facade-only script (leave the globals alone) | Latest stable | `ESB64.jsx` — bannerless IIFE, defines `ESB64` |
 | High-frequency automation / per-eval injection | Latest stable | `vendor-esb64-runtime.js` — 15.8 KB, atob/btoa only |
+| A script that wants the native base64 lane | Latest stable | `ESB64.accel.jsx` — self-extracting accelerated bundle (minified: `ESB64.accel.min.jsx`) |
 | Node.js testing / tooling | Latest stable | `esb64-core.esm.mjs` — ESM core (19 exports) |
 | A fix that isn't released yet | Pre-release / `master` | Build from source: `npm run build` |
 
@@ -199,6 +192,25 @@ var caps = ESB64.capabilities();              // { nativeAtob, nativeBtoa, ... }
 var items = ESB64.benchmark(50);              // in-module quick benchmark
 ```
 
+### Runnable examples
+
+The `examples/` folder ships five runnable, live-verified ExtendScript scripts:
+each one loads the needed build relative to its own location (override with
+the `ESB64_DIST` env var), runs self-checking demonstrations, and returns a
+JSON report as its last-statement value — so they work both from File >
+Scripts and from COM/automation (`eval --file examples/01-atob-btoa.jsx`).
+Run `npm run build` first so `dist/` exists.
+
+| Example | Build | Demonstrates |
+|---|---|---|
+| `01-atob-btoa.jsx` | runtime | gap-fill global install, RFC 4648 vectors, latin1 gate, memo |
+| `02-forgiving-atob.jsx` | runtime | WHATWG forgiving-base64: whitespace, padding, WPT vectors |
+| `03-utf8-codec.jsx` | full | `encodeUtf8`/`decodeUtf8`/`utf8Encode`/`utf8Decode`, malformed-input rules |
+| `04-svg-data-url-batch.jsx` | full | export artboard → SVG → base64 data URL → byte-identical decode |
+| `05-edge-cases.jsx` | full | NUL, `__proto__`-shaped payloads, 0..255 bytes, lone surrogates |
+
+Each script writes its report to `%TEMP%\esb64example-0N-report.json` as well.
+
 ---
 
 ## API Reference
@@ -245,7 +257,29 @@ Quick in-module benchmark. Lanes: `btoa` (latin1), `atob` (latin1), `utf8Encode`
 
 ---
 
+## Validation
+
+| Check | Command | Result |
+|---|---|---|
+| TypeScript strict | `npm run typecheck` | clean |
+| Node assertions (WPT corpus + differential vs native + utf8) | `npm test` | 411/411 |
+| Differential fuzz vs V8 native `atob`/`btoa` + `Buffer` + `TextDecoder` (9 lanes) | `npm run fuzz` | 0 divergences (60,000 checks, seed 42) |
+| Live engine parity (Illustrator 30.6.0 / ExtendScript 4.5.6) | `npm run live-verify` | 66/66 vectors |
+
+The differential oracle is Node's native `atob`/`btoa` (V8), `Buffer` and `TextDecoder`; engine parity is verified by running the identical bundled core through `node tests/esb64-live-verify.mjs` inside real Illustrator via the COM tool.
+
+---
+
 ## Spec Conformance
+
+There is no single canonical "must accept / must-reject" base64 corpus like [nst/JSONTestSuite](https://github.com/nst/JSONTestSuite); the de-facto standards corpora are:
+
+1. **RFC 4648 §10** — the canonical 7-vector sanity set (`f`, `fo`, `foo`, `foob`, `fooba`, `foobar`, and the empty string).
+2. **`web-platform-tests` `fetch/data-urls/resources/base64.json`** — 80 vectors (whitespace, padding rules, invalid characters) with expected byte arrays or must-throw, the corpus the WPT `atob()` tests run against in every browser. Transcribed verbatim into `tests/wpt-b64-corpus.ts`.
+3. **WPT `html/webappapis/atob/base64.any.js`** — behavior tests: btoa over all 258 code points, WebIDL coercions, atob IDL cases.
+4. Implementation test suites (Go `encoding/base64`, Rust `base64` crate, Python stdlib, `base64-js`).
+
+ESB64's test harness (Node) differential-fuzzes against the **native V8 `atob`/`btoa`** (144,000+ checks across 9 lanes, zero divergences) and runs the full WPT `base64.json` corpus. The live-engine verification (`node tests/esb64-live-verify.mjs`) re-runs a curated battery inside real Illustrator through the COM tool and compares against Node-side expectations computed from the same bundled core.
 
 **WHATWG forgiving-base64 decode** ([infra spec](https://infra.spec.whatwg.org/#forgiving-base64-decode)):
 
@@ -347,6 +381,115 @@ The fast path is why `encodeUtf8` defaults to the native lane with a hand-rolled
 
 > **When NOT to use base64 for large payloads:** the btoa step dominates `encodeUtf8` at size (450 KB → 600 KB base64). For bulk binary transport where you control both ends, a length-prefixed byte string avoids the 33% btoa overhead. ESB64 is the right call for interchange (data URLs, JSON envelopes, anything that must be base64); a raw-byte transport is the right call when you don't. In this engine, any approach that avoids array writes is faster than any approach that doesn't.
 
+### Native acceleration (ESB64.accel.jsx)
+
+ESB64 is the first consumer of **[espack](https://github.com/thelabcorner/espack)**
+(the sibling self-extracting ExternalObject packer) in its **"1 + n" model**:
+this bundle is the accelerator-only form ("1") — the WHATWG-exact native
+base64 DLL (`native/espk-b64.c`, built by `npm run native-build`) is embedded
+as base64 inside a single `.jsx` at build time, unpacked **once per system**
+into the shared `%LOCALAPPDATA%\espack\` dir (reused by every espack bundle
+on the machine), loaded via `ExternalObject`, and then swaps `btoa`/`atob`
+(and the `encodeLatin1`/`decodeLatin1` aliases) to the native lane via
+`ESPAK.attach` — the ES3 fallback IS the extractor.
+
+Build: `npm run build:accel` (requires `npm run native-build` + the sibling
+`espack` repo). Emits `dist/ESB64.accel.jsx` — a self-contained single file;
+`dist/ESB64.jsx`/`vendor-*` remain the pure-ES3 artifacts. The DLL also
+exposes `b64decodeToFile(b64, path)` — the native payload-extraction lane
+other espack bundles use to decode their own DLLs straight to disk
+(NUL-safe by construction; no string channel).
+
+#### Freestanding native build (slim + fast + crash-guarded)
+
+`native/espk-b64.c` is **freestanding**: no CRT, no SDK headers — kernel32
+imports only (declared by hand), own first-fit free-list allocator over a
+static 16 MiB BSS pool (zeroed, no file footprint), own
+`memcpy`/`memset`/`strlen`, `DllMain` entry. Built with clang+lld
+(`-O3 -ffast-math -ffreestanding -fno-builtin -march=x86-64-v2
+-mtune=generic -flto` — the ArcFit family flags; the x86-64-v2 baseline runs
+on any Windows x64 >= Win10 2015, no AVX2/FMA requirement at process
+startup); MSVC fallback (`/O2 /GS-` + `/nodefaultlib /entry:DllMain`).
+
+**Optimizations** (bit-level/algorithmic, measured 2026-08-07): a 256-entry
+branchless classification table (valid 0-63 / whitespace -2 / '=' -3 /
+invalid -1; `(v & 0x80)` is the branchless invalid mask), a single
+early-exit whitespace scan that skips the compaction pass for whitespace-free
+inputs, ONE buffer serving as compacted source AND decode output (output
+index never overtakes the read index), an 8-quad (32-char) unrolled main
+loop with 32 independent table loads and one mask check per batch, folded
+NUL-scan+UTF-8 encode (one pass instead of two), and a 4-group-unrolled
+encode. The pre-validation charset pass is provably redundant (the decode
+validates every body position in-loop).
+
+**Crash-guarded allocator (important — a host crash was found and fixed
+live)**: the host calls `ESFreeMem` on returned strings, and the first
+freestanding allocator wrote its free-list header at `p - 16` without
+validation — a foreign pointer (e.g. the static `ESInitialize` signature
+literal) or a double-free corrupted the host heap (verified: Illustrator
+access violations in ntdll heap code). `espk_free` now validates pool
+bounds + alignment and scans the free list for the block (foreign
+pointers and double-frees are ignored no-ops). The 16 MiB pool covers the
+measured worst case (the host holds ~8 MB of returned strings across a
+stress sequence). Exhaustion returns `ESB64_ERR_NO_MEM` (10004,
+positive/catchable — never a negative/fatal code).
+
+Measured (30.6.0, medians): encode 64 K: 503 µs, decode 48 K: 595 µs,
+encode 360 K: 3,465 µs, decode 360 K: 3,783 µs — 8-24% faster than the
+previous MSVC build on every lane. DLL size: **107,520 -> 9,728 bytes
+(-91%)**; bundles shrink accordingly (ESB64.accel.jsx 203,920 -> 73,528,
+minified 44,573; ESON.accel.jsx 373,821 -> 242,065, minified 199,958).
+
+#### Parity contract (differential corpus, both modes — verified live)
+
+The native lane must be byte-identical to the ES3 lane, so the accelerated
+bundle and the pure ES3 vendor are both run against the same WHATWG-exact
+battery (`npm run live-verify`, 66 vectors: whitespace stripping, padding
+edge cases, charset errors, NUL outputs, Latin1 inputs). Verified on
+Illustrator 30.6.0 (2026-08-07): **all 66 vectors pass in both modes with
+identical results.**
+
+Dispatch rules (measured channel constraints — the kTypeString return
+truncates at NUL, so `atob` outputs containing NUL cannot cross the boundary):
+
+- `atob`: NUL/non-ASCII inputs stay in the ES3 lane (boundary can't see them
+  faithfully). ASCII inputs go native; a decoded output containing NUL makes
+  the DLL return `undefined` (sentinel) and the facade falls back to the ES3
+  lane transparently — e.g. `atob("AA==")` → `"\u0000"` via ES3, still exact.
+- `btoa`: NUL-containing or non-Latin1 inputs stay in the ES3 lane; pure
+  Latin1 inputs go native (UTF-8 is reversible for Latin1, so units recover
+  exactly).
+- Native validation errors (codes 10001/10002) surface as
+  `InvalidCharacterError` with the same messages as the ES3 lane.
+
+#### Measured acceleration (Illustrator 30.6.0, medians, live)
+
+| Lane | ES3 | Native (facade) | Speedup |
+|---|---|---|---|
+| `btoa` 16,384 units | 18,553 µs | 317 µs | **58.5×** |
+| `atob` 48 K decoded units | 66,758 µs | 957 µs | **69.8×** |
+
+(Direct DLL calls: `b64encode` 16 K = 139 µs, `b64decode` 48 K = 196 µs; the
+facade wrapper adds ~150-900 µs of boundary + dispatch overhead. The ES3 lane
+is itself ~1 µs/unit — the win grows with payload size; for payloads under a
+few KB the boundary overhead makes ES3 the better choice, and the ES3 lane
+remains fully available in every mode.)
+
+Failure behavior: read-only cache dir, missing `ExternalObject`, or a broken
+DLL → the bundle stays in ES3 mode with the reason surfaced on
+`$.global.ESPAK.lastError()` and `ESB64.acceleration === "es3"`.
+
+---
+
+## Security Model
+
+- `btoa` is a pure byte transform — no eval, no native-code execution.
+- `atob` is a pure byte transform — no eval, no native-code execution.
+- The UTF-8 codec is a pure byte transform.
+- The one native-kernel use (`unescape`/`encodeURIComponent`) is bounded: input is coerced with `String()`, output is the UTF-8 byte string, and lone surrogates (the only `encodeURIComponent` failure mode) fall back to the hand-rolled lane. The engine's escaping functions are not user-code-executable.
+- The memo shares string results by reference. Strings are immutable in JS, so hits are safe to share (unlike ESON's parse memo, which clones on hit).
+- The vendor installs `atob`/`btoa` as globals only when absent (`install({ forceReplace: true })` to override). A script that needs to guarantee its own codec can call the lanes directly via `ESB64.atob` / `ESB64.btoa`.
+
 ---
 
 ## Compatibility
@@ -403,7 +546,9 @@ npm run live-verify    # 66-vector battery inside real Illustrator via the COM t
 npm run benchmark      # Node-side benchmark pipeline + large-payload timing
 ```
 
-Repository layout:
+---
+
+## Repository layout
 
 ```
 esb64/
@@ -413,17 +558,6 @@ esb64/
   examples/       runnable ExtendScript examples (see "Runnable examples")
   dist/           generated bundles (gitignored; produced by npm run build)
 ```
-
----
-
-## Security Model
-
-- `btoa` is a pure byte transform — no eval, no native-code execution.
-- `atob` is a pure byte transform — no eval, no native-code execution.
-- The UTF-8 codec is a pure byte transform.
-- The one native-kernel use (`unescape`/`encodeURIComponent`) is bounded: input is coerced with `String()`, output is the UTF-8 byte string, and lone surrogates (the only `encodeURIComponent` failure mode) fall back to the hand-rolled lane. The engine's escaping functions are not user-code-executable.
-- The memo shares string results by reference. Strings are immutable in JS, so hits are safe to share (unlike ESON's parse memo, which clones on hit).
-- The vendor installs `atob`/`btoa` as globals only when absent (`install({ forceReplace: true })` to override). A script that needs to guarantee its own codec can call the lanes directly via `ESB64.atob` / `ESB64.btoa`.
 
 ---
 

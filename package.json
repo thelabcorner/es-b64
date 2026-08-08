@@ -1,11 +1,13 @@
 {
   "name": "esb64",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "ESB64 — base64 (atob/btoa) polyfill + UTF-8 codec library for ExtendScript (ES3) engines",
   "type": "module",
   "main": "dist/esb64-core.esm.mjs",
   "scripts": {
     "build": "node esb64-build.mjs",
+    "build:accel": "node esb64-build.mjs --accel",
+    "native-build": "powershell -ExecutionPolicy Bypass -File native/build.ps1",
     "test": "node tests/esb64-test.mjs",
     "typecheck": "npx tsc --noEmit -p .",
     "fuzz": "node tests/fuzz.mjs",

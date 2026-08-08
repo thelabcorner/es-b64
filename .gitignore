@@ -1,5 +1,7 @@
 node_modules/
 dist/
+native/bin/
+*.obj
 .idea/
 *.log
 __pycache__/
