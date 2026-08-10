@@ -96,7 +96,7 @@ The codecs are **byte-identical to the browser/Node native implementations by co
 **How it works, in three steps:**
 
 1. Open the [Releases page](https://github.com/thelabcorner/es-b64/releases).
-2. Pick the **latest stable** tag (top of the list — today that is `v1.1.0`).
+2. Pick the **latest stable** tag (top of the list — today that is `v1.2.0`).
 3. Download the asset that matches your use case:
 
 | You are... | Take this release | And this asset |
@@ -400,6 +400,14 @@ Build: `npm run build:accel` (requires `npm run native-build` + the sibling
 exposes `b64decodeToFile(b64, path)` — the native payload-extraction lane
 other espack bundles use to decode their own DLLs straight to disk
 (NUL-safe by construction; no string channel).
+
+**Merge architecture (espack v0.3.0).** ESB64 is the shared "1" in the espack
+1 + n model — it stays a standalone accelerator-only bundle by design (no
+manifest/facade artifacts; its DLL is the accel already embedded in every
+payload bundle, e.g. ESON/ESARR). `ESPAK.attach` now targets the accelerator
+**by name** (`"ESB64Native"`) instead of the default index 0, which is not a
+stable API under a merged bundle — the empty-payload short-circuit keeps the
+standalone bundle loading the accel exactly as before.
 
 #### Freestanding native build (slim + fast + crash-guarded)
 
