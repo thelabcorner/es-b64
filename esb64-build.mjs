@@ -144,6 +144,10 @@ var ACCELERATOR = [
   '            if (typeof e.number === "number" && e.number === 10001) {',
   '              throw invalidCharacter("atob: the string to be decoded is not correctly encoded");',
   '            }',
+  '            // Any other POSITIVE native error (e.g. 10004 allocator',
+  '            // exhaustion) is a transient lane failure: fall back to the ES3',
+  '            // lane for this call. Negative codes are fatal, never returned.',
+  '            if (typeof e.number === "number" && e.number > 0) return origAtob(raw);',
   '            throw e;',
   '          }',
   '          if (typeof out !== "string") return origAtob(raw);',
@@ -158,6 +162,10 @@ var ACCELERATOR = [
   '            if (typeof e.number === "number" && e.number === 10002) {',
   '              throw invalidCharacter("btoa: the string to be encoded contains characters outside of the Latin1 range");',
   '            }',
+  '            // Any other POSITIVE native error (e.g. 10004 allocator',
+  '            // exhaustion) is a transient lane failure: fall back to the ES3',
+  '            // lane for this call. Negative codes are fatal, never returned.',
+  '            if (typeof e.number === "number" && e.number > 0) return origBtoa(raw);',
   '            throw e;',
   '          }',
   '          return out;',
@@ -203,7 +211,7 @@ function buildAccel() {
   // accelerator-only bundle: the shared "1" in the espack 1+n model (the
   // ESB64Native DLL unpacks once per system via the JSX lane, then serves
   // every espack bundle; there is no per-bundle payload here).
-  execFileSync(process.execPath, [espackBuild, '--accel', dll, '--out', accelBundle,
+  execFileSync(process.execPath, [espackBuild, '--accel', dll, '--accel-version', '2', '--out', accelBundle,
     '--name', 'esb64', '--quiet'], { stdio: 'inherit' });
   var bundleText = readFileSync(accelBundle, 'utf8');
   var facadeText = readFileSync(join(DIST, 'ESB64.jsx'), 'utf8');

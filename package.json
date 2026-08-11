@@ -1,6 +1,6 @@
 {
   "name": "esb64",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "ESB64 — base64 (atob/btoa) polyfill + UTF-8 codec library for ExtendScript (ES3) engines",
   "type": "module",
   "main": "dist/esb64-core.esm.mjs",

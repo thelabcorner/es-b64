@@ -5,7 +5,7 @@
  * FREESTANDING build: no CRT, no SDK headers. Imports kernel32 only
  * (CreateFileW/WriteFile/CloseHandle/MultiByteToWideChar - declared below by
  * hand, the same pattern as the ArcFit freestanding EXEs), own minimal
- * free-list allocator over a static BSS pool (1 MiB - zeroed, adds nothing
+ * free-list allocator over a static BSS pool (4 MiB - zeroed, adds nothing
  * to the file size), own memcpy/memset/strlen. Runs on any Windows x64
  * (>= Win10 2015; the build targets x86-64-v2, no AVX2/FMA requirement at
  * process startup). This slims the DLL from ~107 KB (default MSVC CRT) to

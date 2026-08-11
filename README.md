@@ -458,9 +458,11 @@ standalone bundle loading the accel exactly as before.
 #### Freestanding native build (slim + fast + crash-guarded)
 
 `native/espk-b64.c` is **freestanding**: no CRT, no SDK headers — kernel32
-imports only (declared by hand), own first-fit free-list allocator over a
-static 16 MiB BSS pool (zeroed, no file footprint), own
-`memcpy`/`memset`/`strlen`, `DllMain` entry. Built with clang+lld
+imports only (declared by hand), own segmented growable arena (16 MiB
+static BSS segment + `VirtualAlloc` growth segments, 32 MiB default
+per-segment size, unbounded growth; address-ordered free list with
+in-segment coalescing), own `memcpy`/`memset`/`strlen`, `DllMain` entry.
+Built with clang+lld
 (`-O3 -ffast-math -ffreestanding -fno-builtin -march=x86-64-v2
 -mtune=generic -flto` — the ArcFit family flags; the x86-64-v2 baseline runs
 on any Windows x64 >= Win10 2015, no AVX2/FMA requirement at process
@@ -485,12 +487,27 @@ live)**: the host calls `ESFreeMem` on returned strings, and the first
 freestanding allocator wrote its free-list header at `p - 16` without
 validation — a foreign pointer (e.g. the static `ESInitialize` signature
 literal) or a double-free corrupted the host heap (verified: Illustrator
-access violations in ntdll heap code). `espk_free` now validates pool
+access violations in ntdll heap code). `espk_free` now validates block
 bounds + alignment and scans the free list for the block (foreign
-pointers and double-frees are ignored no-ops). The 16 MiB pool covers the
-measured worst case (the host holds ~8 MB of returned strings across a
-stress sequence). Exhaustion returns `ESB64_ERR_NO_MEM` (10004,
-positive/catchable — never a negative/fatal code).
+pointers and double-frees are ignored no-ops). Allocation is a
+**segmented growable arena**: a 16 MiB static BSS segment (zeroed, no
+file footprint) plus `VirtualAlloc`-backed growth segments (32 MiB
+default per-segment size; the segment count is unbounded — no fixed
+ceiling for the host to accumulate into), served from an address-ordered
+free list that coalesces adjacent frees within the same segment
+(cross-segment merge would corrupt release accounting). Allocations come
+from a first-fit scan of the free list, else a bump from existing
+segments (static first), else a new growth segment. Each segment tracks
+its in-use bytes; a non-static segment left fully free once the host GC
+runs `ESFreeMem` is unlinked and released with `VirtualFree(MEM_RELEASE)`
+— the static segment is never released — so RSS returns to baseline
+after a GC pass. The fixed-pool predecessor was drainable: a session
+that ran many evals held several returned buffers at once (the host
+frees on ITS GC schedule), draining the 16 MiB pool before GC ran
+(verified live — 10004 seen on large payloads in session states). With
+growth + release, `ESB64_ERR_NO_MEM` (10004, positive/catchable — never
+a negative/fatal code) is now returned only when `VirtualAlloc` fails
+(true process OOM).
 
 Measured (30.6.0, medians): encode 64 K: 503 µs, decode 48 K: 595 µs,
 encode 360 K: 3,465 µs, decode 360 K: 3,783 µs — 8-24% faster than the
@@ -614,6 +631,7 @@ esb64/
   tests/          Node harnesses (custom, no framework)
   probes/         live ExtendScript probes (capability, benchmark, big-payload)
   examples/       runnable ExtendScript examples (see "Runnable examples")
+  native/         freestanding C accelerator (espk-b64.c -> ESB64Native.dll via npm run native-build)
   dist/           generated bundles (gitignored; produced by npm run build)
 ```
 
