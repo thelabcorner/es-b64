@@ -15,10 +15,10 @@
  *   (clang+lld with the ArcFit family flags; MSVC fallback - both link
  *   /nodefaultlib /entry:DllMain).
  *
- * Direct-interface ABI (SoSharedLibDefs.h): every method is
- *   long fn(TaggedData* argv, long argc, TaggedData* retval);
+ * Direct-interface ABI: pinned ESABI v0.3.0; every business method uses
+ *   ESABI_DIRECT_FUNCTION(name).
  * Returned strings are UTF-8, allocated with espk_malloc, freed by the host
- * via ESFreeMem (== espk_free). Return kESErrOK (0) on success; positive
+ * via ESFreeMem (== espk_free). Return ESABI_OK (0) on success; positive
  * custom codes >= 10000 for catchable errors; negative codes are fatal and
  * never returned.
  *
@@ -28,9 +28,9 @@
  *   b64decodeToFile(b64, path) -> length     (ESPACK extraction fast path:
  *      raw bytes written straight to disk — NUL-safe by construction)
  *
- * Channel constraints (measured on Illustrator 30.6.0): kTypeString returns
+ * Channel constraints (measured on Illustrator 30.6.0): ESABI_TYPE_STRING returns
  * are C strings — a decoded payload containing NUL (0x00) would be truncated
- * by the host, so b64decode returns kTypeUndefined as a sentinel for
+ * by the host, so b64decode returns ESABI_TYPE_UNDEFINED as a sentinel for
  * NUL-containing outputs (the ESB64 facade falls back to its ES3 lane);
  * b64decodeToFile avoids the channel entirely. Inputs are additionally
  * guaranteed ASCII by the facade, so the UTF-8 boundary is byte-exact.
@@ -42,9 +42,8 @@
 
 #include <stddef.h>
 
-#include "SoSharedLibDefs.h"
+#include <esabi/esabi.h>
 
-#define ESB64_API __declspec(dllexport)
 
 /* ---- kernel32 imports (declared by hand; no windows.h - freestanding) ---- */
 
@@ -117,7 +116,7 @@ static size_t strlen(const char* s)
 /*
  * First-fit free-list allocator over a static BSS pool. The pool is 4 MiB of
  * zero-initialized data (no file footprint). Sizing rationale: the string
- * channel can hold several returned kTypeString buffers alive at once (the
+ * channel can hold several returned ESABI_TYPE_STRING buffers alive at once (the
  * host frees them via ESFreeMem on ITS GC schedule), each up to 2x the
  * decoded payload (UTF-8 encoding) plus transient buffers - 4 MiB gives
  * comfortable margin for the multi-MB decode cases. Exhaustion returns NULL
@@ -183,24 +182,24 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD reason, LPVOID reserved)
     return TRUE;
 }
 
-ESB64_API char* ESInitialize(TaggedData* argv, long argc)
+ESABI_INITIALIZE_FUNCTION
 {
     (void)argv;
     (void)argc;
     return "b64encode_s,b64decode_s,b64decodeToFile_ss";
 }
 
-ESB64_API long ESGetVersion(void)
+ESABI_VERSION_FUNCTION
 {
     return 1;
 }
 
-ESB64_API void ESFreeMem(void* p)
+ESABI_FREE_FUNCTION
 {
-    espk_free(p);
+    espk_free(pointer);
 }
 
-ESB64_API void ESTerminate(void)
+ESABI_TERMINATE_FUNCTION
 {
 }
 
@@ -415,12 +414,12 @@ static long b64_decode_raw(const char* in, size_t n, unsigned char** outp,
     }
     *outlenp = o;
     *outp = buf;
-    return kESErrOK;
+    return ESABI_OK;
 }
 
-/* kTypeString-return transport: single pass over the decoded bytes that
+/* ESABI_TYPE_STRING-return transport: single pass over the decoded bytes that
    tracks NULs AND UTF-8-encodes them (the common NUL-free case pays one
-   pass instead of two); NUL outputs -> kTypeUndefined sentinel (the ESB64
+   pass instead of two); NUL outputs -> ESABI_TYPE_UNDEFINED sentinel (the ESB64
    facade falls back to the ES3 lane). */
 static long b64_decode_whatwg(const char* in, size_t n, char** outp,
                               size_t* outlenp, int* has_nul)
@@ -431,7 +430,7 @@ static long b64_decode_whatwg(const char* in, size_t n, char** outp,
     size_t nul_count = 0;
     long rc = b64_decode_raw(in, n, &raw, &o);
     char* utf8;
-    if (rc != kESErrOK) {
+    if (rc != ESABI_OK) {
         return rc;
     }
     utf8 = (char*)espk_malloc(o * 2 + 1);
@@ -465,40 +464,39 @@ static long b64_decode_whatwg(const char* in, size_t n, char** outp,
         espk_free(utf8);
         *has_nul = 1;
         *outp = NULL;
-        return kESErrOK;
+        return ESABI_OK;
     }
     *has_nul = 0;
     *outlenp = o;
     *outp = utf8;
-    return kESErrOK;
+    return ESABI_OK;
 }
 
 /* b64decode(s) -> decoded string, or undefined when the output contains NUL. */
-ESB64_API long b64decode(TaggedData* argv, long argc, TaggedData* retval)
+ESABI_DIRECT_FUNCTION(b64decode)
 {
     long rc;
     char* out = NULL;
     size_t outlen = 0;
     int has_nul = 0;
-    if (argc != 1 || argv[0].type != kTypeString) {
-        return kESErrBadArgumentList;
+    if (argc != 1 || argv[0].type != ESABI_TYPE_STRING) {
+        return ESABI_ERR_BAD_ARGUMENTS;
     }
-    rc = b64_decode_whatwg(argv[0].data.string, strlen(argv[0].data.string),
+    rc = b64_decode_whatwg(argv[0].payload.string_value, strlen(argv[0].payload.string_value),
                            &out, &outlen, &has_nul);
-    if (rc != kESErrOK) {
+    if (rc != ESABI_OK) {
         return rc;
     }
     if (has_nul) {
-        retval->type = kTypeUndefined; /* sentinel: facade falls back to ES3 */
-        return kESErrOK;
+        esabi_value_set_undefined(retval); /* sentinel: facade falls back to ES3 */
+        return ESABI_OK;
     }
-    retval->type = kTypeString;
-    retval->data.string = out;
-    return kESErrOK;
+    esabi_value_set_string(retval, out);
+    return ESABI_OK;
 }
 
 /*
- * b64decodeToFile(b64, outPath) -> decoded length (kTypeInteger).
+ * b64decodeToFile(b64, outPath) -> decoded length (ESABI_TYPE_INTEGER).
  * The ESPACK extraction fast path: decodes WHATWG-exactly and writes the
  * RAW bytes directly to outPath via CreateFileW/WriteFile (kernel32, no
  * CRT) - no string channel, NUL-safe by construction. The caller (espack
@@ -506,7 +504,7 @@ ESB64_API long b64decode(TaggedData* argv, long argc, TaggedData* retval)
  * and falls back to the JSX lane on any error code.
  * Errors: 10001 invalid base64, 10003 cannot write the target file.
  */
-ESB64_API long b64decodeToFile(TaggedData* argv, long argc, TaggedData* retval)
+ESABI_DIRECT_FUNCTION(b64decodeToFile)
 {
     unsigned char* out = NULL;
     size_t outlen = 0;
@@ -516,15 +514,15 @@ ESB64_API long b64decodeToFile(TaggedData* argv, long argc, TaggedData* retval)
     HANDLE h;
     DWORD written = 0;
     BOOL ok;
-    if (argc != 2 || argv[0].type != kTypeString || argv[1].type != kTypeString) {
-        return kESErrBadArgumentList;
+    if (argc != 2 || argv[0].type != ESABI_TYPE_STRING || argv[1].type != ESABI_TYPE_STRING) {
+        return ESABI_ERR_BAD_ARGUMENTS;
     }
-    rc = b64_decode_raw(argv[0].data.string, strlen(argv[0].data.string),
+    rc = b64_decode_raw(argv[0].payload.string_value, strlen(argv[0].payload.string_value),
                         &out, &outlen);
-    if (rc != kESErrOK) {
+    if (rc != ESABI_OK) {
         return rc;
     }
-    wlen = MultiByteToWideChar(CP_UTF8, 0, argv[1].data.string, -1, NULL, 0);
+    wlen = MultiByteToWideChar(CP_UTF8, 0, argv[1].payload.string_value, -1, NULL, 0);
     if (wlen <= 0) {
         espk_free(out);
         return ESB64_ERR_FILE_WRITE;
@@ -534,7 +532,7 @@ ESB64_API long b64decodeToFile(TaggedData* argv, long argc, TaggedData* retval)
         espk_free(out);
         return ESB64_ERR_NO_MEM;
     }
-    MultiByteToWideChar(CP_UTF8, 0, argv[1].data.string, -1, wpath, wlen);
+    MultiByteToWideChar(CP_UTF8, 0, argv[1].payload.string_value, -1, wpath, wlen);
     h = CreateFileW(wpath, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS,
                     FILE_ATTRIBUTE_NORMAL, NULL);
     espk_free(wpath);
@@ -548,9 +546,8 @@ ESB64_API long b64decodeToFile(TaggedData* argv, long argc, TaggedData* retval)
     if (!ok || (size_t)written != outlen) {
         return ESB64_ERR_FILE_WRITE;
     }
-    retval->type = kTypeInteger;
-    retval->data.intval = (long)outlen;
-    return kESErrOK;
+    esabi_value_set_i32(retval, (esabi_i32)outlen);
+    return ESABI_OK;
 }
 
 /*
@@ -649,22 +646,21 @@ static long b64_encode_whatwg(const char* in, size_t n, char** outp)
     out[o] = '\0';
     espk_free(units);
     *outp = out;
-    return kESErrOK;
+    return ESABI_OK;
 }
 
 /* b64encode(s) -> base64 string (Latin1 input; else error 10002). */
-ESB64_API long b64encode(TaggedData* argv, long argc, TaggedData* retval)
+ESABI_DIRECT_FUNCTION(b64encode)
 {
     long rc;
     char* out = NULL;
-    if (argc != 1 || argv[0].type != kTypeString) {
-        return kESErrBadArgumentList;
+    if (argc != 1 || argv[0].type != ESABI_TYPE_STRING) {
+        return ESABI_ERR_BAD_ARGUMENTS;
     }
-    rc = b64_encode_whatwg(argv[0].data.string, strlen(argv[0].data.string), &out);
-    if (rc != kESErrOK) {
+    rc = b64_encode_whatwg(argv[0].payload.string_value, strlen(argv[0].payload.string_value), &out);
+    if (rc != ESABI_OK) {
         return rc;
     }
-    retval->type = kTypeString;
-    retval->data.string = out;
-    return kESErrOK;
+    esabi_value_set_string(retval, out);
+    return ESABI_OK;
 }

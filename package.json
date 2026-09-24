@@ -1,6 +1,6 @@
 {
   "name": "esb64",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "description": "ESB64 — base64 (atob/btoa) polyfill + UTF-8 codec library for ExtendScript (ES3) engines",
   "type": "module",
   "main": "dist/esb64-core.esm.mjs",
@@ -12,7 +12,12 @@
     "typecheck": "npx tsc --noEmit -p .",
     "fuzz": "node tests/fuzz.mjs",
     "benchmark": "node tests/benchmark.mjs",
-    "live-verify": "node tests/esb64-live-verify.mjs"
+    "live-verify": "node tests/esb64-live-verify.mjs",
+    "estc:static": "node ../extendscript-toolchain/bin/estc.mjs check dist/ESB64.jsx --no-target && node ../extendscript-toolchain/bin/estc.mjs check dist/vendor-esb64.js --no-target && node ../extendscript-toolchain/bin/estc.mjs check dist/ESB64-runtime.jsx --no-target && node ../extendscript-toolchain/bin/estc.mjs check dist/vendor-esb64-runtime.js --no-target && node ../extendscript-toolchain/bin/estc.mjs check dist/ESB64.facade.jsx --no-target && node ../extendscript-toolchain/bin/estc.mjs check dist/ESB64.accel.jsx --no-target && node ../extendscript-toolchain/bin/estc.mjs check dist/ESB64.accel.min.jsx --no-target",
+    "estc:live-parse": "node ../extendscript-toolchain/bin/estc.mjs check dist/ESB64.jsx --no-target --live && node ../extendscript-toolchain/bin/estc.mjs check dist/vendor-esb64.js --no-target --live && node ../extendscript-toolchain/bin/estc.mjs check dist/ESB64-runtime.jsx --no-target --live && node ../extendscript-toolchain/bin/estc.mjs check dist/vendor-esb64-runtime.js --no-target --live && node ../extendscript-toolchain/bin/estc.mjs check dist/ESB64.facade.jsx --no-target --live && node ../extendscript-toolchain/bin/estc.mjs check dist/ESB64.accel.jsx --no-target --live && node ../extendscript-toolchain/bin/estc.mjs check dist/ESB64.accel.min.jsx --no-target --live",
+    "verify": "npm run typecheck && npm run build:accel && npm run test && npm run fuzz && npm run estc:static",
+    "release:gate": "npm run verify && npm run estc:live-parse && npm run live-verify",
+    "prepublishOnly": "npm run release:gate"
   },
   "devDependencies": {
     "esbuild": "^0.28.1",

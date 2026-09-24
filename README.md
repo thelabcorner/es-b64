@@ -533,7 +533,7 @@ edge cases, charset errors, NUL outputs, Latin1 inputs). Verified on
 Illustrator 30.6.0 (2026-08-07): **all 66 vectors pass in both modes with
 identical results.**
 
-Dispatch rules (measured channel constraints — the kTypeString return
+Dispatch rules (measured channel constraints — the ESABI_TYPE_STRING return
 truncates at NUL, so `atob` outputs containing NUL cannot cross the boundary):
 
 - `atob`: NUL/non-ASCII inputs stay in the ES3 lane (boundary can't see them
@@ -621,6 +621,7 @@ All measured live on Illustrator 30.6.0 / ExtendScript 4.5.6. Several are not do
 ## Development
 
 ```
+git submodule update --init --recursive   # pins ESABI v0.3.0 for native ABI
 npm install            # devDeps: esbuild, typescript
 npm run typecheck      # tsc --noEmit (strict)
 npm run build          # dist/ESB64.jsx + vendor-esb64.js + vendor-esb64-runtime.js + esb64-core.esm.mjs
@@ -641,6 +642,7 @@ esb64/
   probes/         live ExtendScript probes (capability, benchmark, big-payload)
   examples/       runnable ExtendScript examples (see "Runnable examples")
   native/         freestanding C accelerator (espk-b64.c -> ESB64Native.dll via npm run native-build)
+  deps/esabi/     pinned ESABI v0.3.0; sole ExternalObject ABI authority
   dist/           generated bundles (gitignored; produced by npm run build)
 ```
 

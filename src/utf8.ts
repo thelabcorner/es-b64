@@ -287,7 +287,7 @@ function setMemo(raw: string, value: any, isError: boolean): void {
 function emitCodePoint(ch: string[], cp: number): string {
   if (cp >= 0x10000 && cp <= 0x10FFFF) {
     var c = cp - 0x10000;
-    return String.fromCharCode(0xD800 + (c >> 10), 0xDC00 + (c & 0x3FF));
+    return (String.fromCharCode as any)(0xD800 + (c >> 10), 0xDC00 + (c & 0x3FF));
   } else if (cp <= 0xFF) {
     return ch[cp];
   }

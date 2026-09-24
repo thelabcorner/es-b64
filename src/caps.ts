@@ -73,7 +73,7 @@ export function globalObject(): any {
     // fall through
   }
   try {
-    return Function('return this')();
+    return (Function as any)('return this')();
   } catch (e) {
     return null;
   }

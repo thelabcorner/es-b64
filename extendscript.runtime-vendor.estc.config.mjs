@@ -1,0 +1,23 @@
+export default {
+  host: 'illustrator',
+  hostTypes: 'Illustrator/2022',
+  additionalTypes: ['./src/globals.d.ts'],
+  entry: 'src/runtime.ts',
+  outfile: 'dist/vendor-esb64-runtime.js',
+  globalName: 'ESB64',
+  target: 'illustrator',
+  requireTarget: false,
+  sourceLint: true,
+  typecheck: true,
+  normalize: true,
+  compatibilityTransforms: ['esbuild'],
+  compatibilityShims: [],
+  allowedMissingBuiltins: [],
+  allowedGlobalPatches: [],
+  prelude: [],
+  footer: [{ file: 'tooling/estc-vendor-footer.js' }],
+  allowJson: false,
+  allowIncludes: false,
+  live: false,
+  liveLaunch: false
+};

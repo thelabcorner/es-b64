@@ -18,6 +18,7 @@ import { fileURLToPath } from 'node:url';
 var ROOT = dirname(fileURLToPath(import.meta.url));
 var DIST = join(ROOT, 'dist');
 var ENTRY = join(ROOT, 'src', 'index.ts');
+var ESTC = join(ROOT, '..', 'extendscript-toolchain', 'bin', 'estc.mjs');
 
 function findEsbuild() {
   if (process.env.ESBUILD_PATH && existsSync(process.env.ESBUILD_PATH)) return process.env.ESBUILD_PATH;
@@ -47,12 +48,11 @@ function esmBuild(entry, outfile) {
   ], { stdio: 'inherit' });
 }
 
-function jsxBuild(entry, outfile) {
-  execFileSync(process.execPath, [
-    findEsbuild(), entry, '--bundle', '--outfile=' + outfile,
-    '--format=iife', '--global-name=ESB64', '--platform=neutral', '--target=es5',
-    '--log-level=warning'
-  ], { stdio: 'inherit' });
+function estcBuild(config) {
+  execFileSync(process.execPath, [ESTC, 'build', '--config', config], {
+    cwd: ROOT,
+    stdio: 'inherit'
+  });
 }
 
 mkdirSync(DIST, { recursive: true });
@@ -60,49 +60,10 @@ mkdirSync(DIST, { recursive: true });
 // 1. ESM core bundle (Node harnesses import this).
 esmBuild(ENTRY, join(DIST, 'esb64-core.esm.mjs'));
 
-// 2. JSX bundle with the ES3 shim prepended. ExtendScript (SpiderMonkey 2014)
-//    lacks Object.defineProperty and Function.prototype.bind, which esbuild's
-//    ES5 export helpers require.
+// 2. Canonical ExtendScript facade. ESTC owns ES3 normalization and keeps
+// esbuild's helper compatibility bundle-local instead of mutating host globals.
 var jsx = join(DIST, 'ESB64.jsx');
-jsxBuild(ENTRY, jsx);
-
-var shim = [
-  'if (typeof Object.defineProperty !== "function") {',
-  '  Object.defineProperty = function (obj, prop, desc) {',
-  '    if (desc) {',
-  '      if (typeof desc.get === "function") {',
-  '        if (typeof obj.__defineGetter__ === "function") { obj.__defineGetter__(prop, desc.get); }',
-  '        else { obj[prop] = desc.get(); }',
-  '      } else if ("value" in desc) {',
-  '        obj[prop] = desc.value;',
-  '      }',
-  '    }',
-  '    return obj;',
-  '  };',
-  '  Object.getOwnPropertyDescriptor = function (obj, prop) {',
-  '    return { value: obj[prop], writable: true, enumerable: true, configurable: true };',
-  '  };',
-  '  Object.getOwnPropertyNames = function (obj) {',
-  '    var a = [], k;',
-  '    for (k in obj) { if (Object.prototype.hasOwnProperty.call(obj, k)) { a.push(k); } }',
-  '    return a;',
-  '  };',
-  '}',
-  'if (typeof Function.prototype.bind !== "function") {',
-  '  Function.prototype.bind = function (thisArg) {',
-  '    var fn = this;',
-  '    var args = Array.prototype.slice.call(arguments, 1);',
-  '    return function () {',
-  '      return fn.apply(thisArg, args.concat(Array.prototype.slice.call(arguments)));',
-  '    };',
-  '  };',
-  '}',
-  ''
-].join('\n');
-
-var finalJsx = shim + readFileSync(jsx, 'utf8');
-finalJsx = finalJsx.replace(/"use strict";?/g, '');
-writeFileSync(jsx, finalJsx);
+estcBuild('./extendscript.estc.config.mjs');
 
 // 2b. Accelerated self-extracting single-file bundle (ESB64.accel.jsx).
 // Requires: native/bin/ESB64Native.dll (npm run native-build) + the sibling
@@ -212,13 +173,43 @@ function buildAccel() {
   // ESB64Native DLL unpacks once per system via the JSX lane, then serves
   // every espack bundle; there is no per-bundle payload here).
   execFileSync(process.execPath, [espackBuild, '--accel', dll, '--accel-version', '2', '--out', accelBundle,
-    '--name', 'esb64', '--quiet'], { stdio: 'inherit' });
+    '--name', 'esb64', '--quiet'], {
+    stdio: 'inherit',
+    env: Object.assign({}, process.env, {
+      ESB64_RUNTIME_PATH: join(DIST, 'vendor-esb64-runtime.js')
+    })
+  });
   var bundleText = readFileSync(accelBundle, 'utf8');
   var facadeText = readFileSync(join(DIST, 'ESB64.jsx'), 'utf8');
+  // Lane C (merge architecture): emit the manifest sidecar (pinned schema
+  // contract/manifest-schema-v1) + the loader-free facade artifact for the
+  // composer. Accel-only: no payloads, the shared ESB64Native accelerator is
+  // the single "1" that every merged bundle shares.
+  var dllBytes = readFileSync(dll);
+  var accelManifest = {
+    format: 'espack-manifest',
+    version: 1,
+    bundleName: 'esb64',
+    cacheDir: '',
+    chunkSize: 24576, // mirrors espack-build.mjs CHUNK_SIZE
+    accel: {
+      name: 'ESB64Native',
+      version: '2',
+      len: dllBytes.length,
+      b64: dllBytes.toString('base64'),
+      fileName: 'ESB64Native_v2.dll'
+    },
+    payloads: []
+  };
+  writeFileSync(join(DIST, 'ESB64.manifest.json'), JSON.stringify(accelManifest, null, 2) + '\n');
+  var facadeOut = facadeText + '\n' + ACCELERATOR +
+    '// ESB64.facade.jsx - loader-free facade + espack adapter (composer appends to a merged bundle; requires ESPAK on $.global)\n';
+  writeFileSync(join(DIST, 'ESB64.facade.jsx'), facadeOut);
   var accelOut = bundleText + '\n' + facadeText + '\n' + ACCELERATOR +
     '// ESB64.accel.jsx - self-extracting single-file bundle (espack 1+n + ESB64 + accelerator)\n';
   writeFileSync(join(DIST, 'ESB64.accel.jsx'), accelOut);
-  console.log('[esb64-build] wrote ' + join(DIST, 'ESB64.accel.jsx') + ' (' + accelOut.length + ' bytes)');
+  console.log('[esb64-build] wrote ' + join(DIST, 'ESB64.accel.jsx') + ' (' + accelOut.length + ' bytes)' +
+    ' + ESB64.manifest.json + ESB64.facade.jsx');
   minifyAccel(accelOut);
 }
 
@@ -250,33 +241,12 @@ function minifyAccel(accelOut) {
   console.log('[esb64-build] wrote ' + minFinal + ' (' + minOut.length + ' bytes, banner preserved)');
 }
 
-// 3. Production vendor: the same bundle + a gap-fill footer. Unlike ESON
-//    (which REPLACES the host JSON because the native one is permissive),
-//    native atob/btoa implementations are spec-fine, so the vendor only
-//    installs when the globals are absent. install({ forceReplace: true })
-//    overrides. The ESB64 facade is always available as the global `ESB64`.
-var footer = [
-  '(function () {',
-  '  var g = null;',
-  '  try { if (typeof $ !== "undefined" && $.global) { g = $.global; } } catch (e1) {}',
-  '  if (!g) { try { g = (function () { return this; })(); } catch (e2) {} }',
-  '  if (!g) return;',
-  '  if (typeof g.atob !== "function") { g.atob = ESB64.atob; }',
-  '  if (typeof g.btoa !== "function") { g.btoa = ESB64.btoa; }',
-  '})();',
-  ''
-].join('\n');
+// 3. Production vendor: ESTC applies the gap-fill footer after normalization.
+estcBuild('./extendscript.vendor.estc.config.mjs');
 
-var vendor = finalJsx + '\n' + footer;
-writeFileSync(join(DIST, 'vendor-esb64.js'), vendor);
-
-// 4. Runtime-only vendor: tree-shaken atob+btoa core for per-eval injection.
-var runtimeJsx = join(DIST, 'ESB64-runtime.jsx');
-jsxBuild(join(ROOT, 'src', 'runtime.ts'), runtimeJsx);
-var runtimeFinal = shim + readFileSync(runtimeJsx, 'utf8');
-runtimeFinal = runtimeFinal.replace(/"use strict";?/g, '');
-var runtimeVendor = runtimeFinal + '\n' + footer;
-writeFileSync(join(DIST, 'vendor-esb64-runtime.js'), runtimeVendor);
+// 4. Runtime-only artifacts: tree-shaken atob+btoa core for per-eval injection.
+estcBuild('./extendscript.runtime.estc.config.mjs');
+estcBuild('./extendscript.runtime-vendor.estc.config.mjs');
 
 // 5. Accelerated self-extracting bundle (when the DLL + espack exist).
 if (process.argv.includes('--accel')) {

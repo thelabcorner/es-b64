@@ -146,7 +146,7 @@ export function benchmark(iterations?: number): BenchItem[] {
   ratio = nativeUs > 0 ? nativeUs / median(oursAtob) : 0;
   out[out.length] = lane('atob', 'latin1', it, oursAtob, payload.length, ratio);
 
-  var utf8Payload = 'dieline export: é 日本語 😀 नमस्ते العربية π 100%';
+  var utf8Payload = 'dieline export: é 日本語 ' + String.fromCharCode(0xD83D) + String.fromCharCode(0xDE00) + ' नमस्ते العربية π 100%';
   var oursUtf8Enc = timeLane(function (): void { utf8Encode(utf8Payload); }, it);
   out[out.length] = lane('utf8Encode', 'unicode', it, oursUtf8Enc, utf8Payload.length, 0);
 

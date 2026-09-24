@@ -218,7 +218,7 @@ function decodeFast(raw: string, n: number): string {
     q13 = DEC_TABLE[raw.charCodeAt(i + 29)];
     q14 = DEC_TABLE[raw.charCodeAt(i + 30)];
     q15 = DEC_TABLE[raw.charCodeAt(i + 31)];
-    buf[bi++] = String.fromCharCode(
+    buf[bi++] = (String.fromCharCode as any)(
       (p0 << 2) + (p1 >> 4), ((p1 & 15) << 4) + (p2 >> 2), ((p2 & 3) << 6) + p3,
       (p4 << 2) + (p5 >> 4), ((p5 & 15) << 4) + (p6 >> 2), ((p6 & 3) << 6) + p7,
       (p8 << 2) + (p9 >> 4), ((p9 & 15) << 4) + (p10 >> 2), ((p10 & 3) << 6) + p11,

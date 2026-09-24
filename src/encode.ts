@@ -62,7 +62,7 @@ export function btoaClearMemo(): void {
 }
 
 export function invalidCharacter(msg: string): Error {
-  var e = new Error(msg);
+  var e: any = new Error(msg);
   try {
     e.name = 'InvalidCharacterError';
   } catch (ignore) {

@@ -233,7 +233,9 @@ function runMode(mode) {
     '    roundtrip: ESB64.decodeUtf8(ESB64.encodeUtf8("dieline \\u00e9 \\ud83d\\ude00")) === "dieline \\u00e9 \\ud83d\\ude00",',
     '    timings: timings,',
     '    acceleration: typeof ESB64.acceleration !== "undefined" ? ESB64.acceleration : "es3",',
-    '    espakMode: espak && typeof espak.mode === "function" ? espak.mode() : "n/a" };',
+    '    espakMode: espak && typeof espak.mode === "function" ? espak.mode() : "n/a",',
+    '    espakError: espak && typeof espak.lastError === "function" ? espak.lastError() : "",',
+    '    espakAccelReady: espak && typeof espak.accelReady === "function" ? espak.accelReady() : false };',
     '};',
     'esb64Run();'
   ].join('\n');
@@ -267,10 +269,17 @@ function runMode(mode) {
     for (var f = 0; f < report.failures.length; f++) console.error('  FAIL ' + report.failures[f]);
     process.exit(1);
   }
+  if (mode === 'native' && report.acceleration !== 'native') {
+    console.error('live-verify [native]: accelerator did not activate; acceleration=' + report.acceleration +
+      ' espakMode=' + report.espakMode + ' accelReady=' + report.espakAccelReady +
+      ' lastError=' + JSON.stringify(report.espakError));
+    process.exit(1);
+  }
   console.log('live-verify [' + mode + ']: all ' + report.total + ' vectors passed in the engine (Illustrator ' + report.engine + ')');
   console.log('live-verify [' + mode + ']: caps before ' + JSON.stringify(report.capsBefore) + ' -> after ' + JSON.stringify(report.capsAfter));
   console.log('live-verify [' + mode + ']: memo=' + report.memo + ' roundtrip=' + report.roundtrip);
-  console.log('live-verify [' + mode + ']: acceleration=' + report.acceleration + ' espakMode=' + report.espakMode);
+  console.log('live-verify [' + mode + ']: acceleration=' + report.acceleration + ' espakMode=' + report.espakMode +
+    ' accelReady=' + report.espakAccelReady + (report.espakError ? ' lastError=' + report.espakError : ''));
   console.log('live-verify [' + mode + ']: timings btoa16kUs=' + report.timings.btoa16kUs + ' atob48kUs=' + report.timings.atob48kUs);
   return report;
 }
