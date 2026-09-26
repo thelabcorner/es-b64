@@ -11,23 +11,20 @@
 //            then swaps to the native accelerator DLL via ESPAK.attach)
 // Both modes must produce byte-identical results on the same corpus (the
 // differential-corpus parity contract). Timings are reported per mode.
-import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { createLegacyComToolV2Runner } from '../../extendscript-toolchain/src/comtool-v2-compat.mjs';
 
 var ROOT = dirname(fileURLToPath(import.meta.url));
 var PROJECT = join(ROOT, '..');
 var VENDOR = join(PROJECT, 'dist', 'vendor-esb64.js');
 var ACCEL = join(PROJECT, 'dist', 'ESB64.accel.jsx');
-var TOOL = process.env.ILLUSTRATOR_COM_TOOL || 'C:/Program Files/Adobe/Adobe Illustrator 2026/Presets/en_US/Scripts/agent-skills/illustrator-com-automation-skill/comtool/ILLUSTRATOR_COM_TOOL.py';
+var COM = createLegacyComToolV2Runner();
+process.on('exit', function () { try { COM.close(); } catch (ignore) {} });
 
 if (!existsSync(VENDOR)) {
   console.error('live-verify: build first (npm run build) - ' + VENDOR + ' missing');
-  process.exit(1);
-}
-if (!existsSync(TOOL)) {
-  console.error('live-verify: COM tool not found at ' + TOOL);
   process.exit(1);
 }
 
@@ -244,9 +241,10 @@ function runMode(mode) {
   console.log('live-verify [' + mode + ']: running ' + vectors.length + ' vectors in Illustrator...');
   var pyOut;
   try {
-    pyOut = execFileSync('python', [TOOL, 'eval', '--file', probePath.replace(/\\/g, '/')], {
-      encoding: 'utf8', timeout: 180000
-    });
+    pyOut = COM.runText(
+      ['eval', '--file', probePath.replace(/\\/g, '/'), '--launch'],
+      { timeoutMs: 180000 }
+    );
   } catch (e) {
     console.error('live-verify [' + mode + ']: COM tool failed: ' + String((e.stdout || e.message) + '').slice(0, 2000));
     process.exit(1);
