@@ -11,7 +11,7 @@
 [![UTF-8: WHATWG](https://img.shields.io/badge/UTF--8-WHATWG%20TextEncoder%2FDecoder-success)](https://encoding.spec.whatwg.org/)
 [![Adobe: Creative Suite](https://img.shields.io/badge/Adobe%20-Creative%20Suite-red?logo=adobe&logoColor=white)](https://extendscript.docsforadobe.dev/)
 [![Engine](https://img.shields.io/badge/ExtendScript-ES3-green)](#compatibility)
-[![Size](https://img.shields.io/badge/runtime-15.8%20KB-orange)](#installation)
+[![Size](https://img.shields.io/badge/runtime-10.1%20KB-orange)](#installation)
 [![License: GPL-3.0-or-later](https://img.shields.io/badge/license-GPL%203.0--or--later-blue)](https://www.gnu.org/licenses/gpl-3.0.html)
 
 </div>
@@ -150,8 +150,8 @@ The codecs are **byte-identical to the browser/Node native implementations by co
 - **Fast UTF-8 encode via the engine's native escaping functions** (`unescape(encodeURIComponent(s))`), measured ~50× faster than the hand-rolled encoder on 450 KB in the live engine (28.6 ms vs 1456 ms). Falls back to the hand-rolled encoder on lone surrogates (where `encodeURIComponent` throws `URIError`), so the contract never changes.
 - **Memoized, two-tier**: an 8-entry repeat cache (≤32 KiB inputs) keyed by the exact input skips the codec entirely on repeat payloads, plus a **big-payload tier** (≤2 MiB inputs, 2 entries) keyed by a short sample-hash with a full-string collision check (~1 µs on 1 MB — native memcmp). Big-memo hits measured ~1 ms for 1 MB (vs 1.51 s cold, ~1500×). NUL-bearing and `__proto__` inputs skip the small tier but are handled by the hash tier (its key is the hash, not the input).
 - **Strict-charset, engine-safe**: every string scan is `charCodeAt`-based (the engine's `charAt` returns `""` for U+0000); output is built with arrays + `join` (loop concatenation is quadratic in this engine); no mixed bitwise `|`/`&` chains (the engine mis-compiles them — see below).
-- **No runtime dependencies**: the production bundle is one file (facade + codec), ~28 KB.
-- **Two builds**: full (`ESB64.jsx` — all lanes, capabilities, install, benchmark) and runtime (`vendor-esb64-runtime.js` — `atob`/`btoa` only, 15.8 KB) for per-eval injection.
+- **No runtime dependencies**: the production bundle is one file (facade + codec), ~18 KB.
+- **Two builds**: full (`ESB64.jsx` — all lanes, capabilities, install, benchmark) and runtime (`vendor-esb64-runtime.js` — `atob`/`btoa` only, 10.1 KB) for per-eval injection.
 
 ---
 
@@ -160,7 +160,7 @@ The codecs are **byte-identical to the browser/Node native implementations by co
 | | **Runtime build** | **Full build** | **Accel build (recommended)** |
 |---|---|---|---|
 | Files | `vendor-esb64-runtime.js` | `vendor-esb64.js`, `ESB64.jsx` | `ESB64.accel.jsx` (minified: `ESB64.accel.min.jsx`) |
-| Size | 15.8 KB | 28.6 KB / 28.2 KB | 73.5 KB (44.6 KB minified) |
+| Size | 10.1 KB | 18.0 KB / 18.2 KB | 69.7 KB (45.7 KB minified) |
 | API | `atob`, `btoa` only | `atob`, `btoa`, `encodeUtf8`, `decodeUtf8`, `utf8Encode`, `utf8Decode`, `capabilities`, `install`, `benchmark`, `classifyGlobalB64` | the full facade; `atob`/`btoa` (+ `encodeLatin1`/`decodeLatin1`) swap to the native lane via `ESPAK.attach` — ES3-first, full fallback; `ESB64.acceleration` = `"native"` \| `"es3"` |
 | Installs global `atob`/`btoa` | yes | yes | no (facade + native swap only; use the vendor builds for global install) |
 | Best for | per-eval injection, anything that only needs base64 | plugins/scripts that also need the UTF-8 codec, capability probing, or benchmarks | single-file distribution with the native base64 lane (Windows x64) — the recommended default |
@@ -184,16 +184,17 @@ The codecs are **byte-identical to the browser/Node native implementations by co
 **How it works, in three steps:**
 
 1. Open the [Releases page](https://github.com/thelabcorner/es-b64/releases).
-2. Pick the **latest stable** tag (top of the list — today that is `v1.2.0`).
+2. Pick the **latest stable** tag.
 3. Download the asset that matches your use case:
 
 | You are... | Take this release | And this asset |
 |---|---|---|
 | A script/plugin that needs `atob` / `btoa` | **Latest stable** | `vendor-esb64.js` — drop-in vendor, gap-fills the globals |
 | A facade-only script (leave the globals alone) | Latest stable | `ESB64.jsx` — bannerless IIFE, defines `ESB64` |
-| High-frequency automation / per-eval injection | Latest stable | `vendor-esb64-runtime.js` — 15.8 KB, atob/btoa only |
+| High-frequency automation / per-eval injection | Latest stable | `vendor-esb64-runtime.js` — 10.1 KB, atob/btoa only |
 | A script that wants the native base64 lane | Latest stable | `ESB64.accel.jsx` — self-extracting accelerated bundle (minified: `ESB64.accel.min.jsx`) |
 | Embedding the native accelerator in your own espack bundle | Latest stable | `ESB64Native.dll` — freestanding WHATWG-exact accelerator (9,728 B) |
+| Composing ESB64 into an existing ESPACK runtime | Latest stable | `ESB64.facade.jsx` + `ESB64.manifest.json` — manifest-v2 composition inputs |
 | Node.js testing / tooling | Latest stable | `esb64-core.esm.mjs` — ESM core (19 exports) |
 | A fix that isn't released yet | Pre-release / `master` | Build from source: `npm run build` |
 
