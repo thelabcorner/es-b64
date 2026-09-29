@@ -55,6 +55,21 @@ Deterministic random streams and sampling for ExtendScript.
 **[ESUUID](https://github.com/thelabcorner/es-uuid)**  
 RFC 9562 UUID generation, parsing, and conversion for ExtendScript.
 
+**[ESENV](https://github.com/thelabcorner/es-env)**  
+Environment and capability detection for ExtendScript.
+
+**[ESPATH](https://github.com/thelabcorner/es-path)**  
+Deterministic Windows/POSIX path and RFC 8089 file-URI transformations.
+
+**[ESFS](https://github.com/thelabcorner/es-fs)**  
+Synchronous ExtendScript File/Folder I/O with explicit text, BINARY, and replacement semantics.
+
+**[ESHASH](https://github.com/thelabcorner/es-hash)**  
+CRC-32/ISO-HDLC and SHA-256 for byte strings and UTF-8 text.
+
+**[ESLOG](https://github.com/thelabcorner/es-log)**  
+Structured logging with bounded text and JSONL sinks.
+
 </td>
 <td width="50%" valign="top">
 
@@ -80,6 +95,9 @@ Native state and durable storage for Adobe tooling.
 
 **[COMTool](https://github.com/thelabcorner/COMTool)**  
 Guarded COM, ExtendScript, plug-in, and debugger automation for Adobe desktop apps.
+
+**ESsemble** <sub>coming soon</sub>  
+Typed framework, resolver, and composition layer for the ExtendScript toolkit.
 
 **ESOBF** <sub>coming soon</sub>  
 Obfuscation for hardened JSX distribution.
@@ -471,13 +489,24 @@ exposes `b64decodeToFile(b64, path)` — the native payload-extraction lane
 other espack bundles use to decode their own DLLs straight to disk
 (NUL-safe by construction; no string channel).
 
-**Merge architecture (espack v0.3.0).** ESB64 is the shared "1" in the espack
-1 + n model — it stays a standalone accelerator-only bundle by design (no
-manifest/facade artifacts; its DLL is the accel already embedded in every
-payload bundle, e.g. ESON/ESARR). `ESPAK.attach` now targets the accelerator
-**by name** (`"ESB64Native"`) instead of the default index 0, which is not a
-stable API under a merged bundle — the empty-payload short-circuit keeps the
-standalone bundle loading the accel exactly as before.
+**Runtime-composition architecture (ESPACK v0.5.0).** ESB64 remains the shared
+native "1" in the 1+n extraction model, but it now also publishes
+`dist/ESB64.facade.jsx` and `dist/ESB64.manifest.json` as a first-class
+manifest-v2 library/capability provider. The manifest records:
+
+- library identity/version and exact facade SHA-256/provenance;
+- the ESB64 activation contract (`atob`, `btoa`, UTF-8 encode/decode);
+- the optional `esb64.native` capability backed by `ESB64Native_v2.dll`;
+- ESPACK composer provenance and the accelerator SHA-256.
+
+Downstream bundles such as ESON and ESLOG merge that manifest transitively.
+ESPACK emits one shared loader/control plane and deduplicates the ESB64 library
+and accelerator even when several dependencies require them. The standalone
+`ESB64.accel.jsx` remains a valid self-contained distribution.
+
+`ESPAK.attach` targets the accelerator **by name** (`"ESB64Native"`) rather
+than index 0; indices are not stable once multiple libraries/payloads are
+flattened.
 
 #### Freestanding native build (slim + fast + crash-guarded)
 

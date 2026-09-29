@@ -156,7 +156,15 @@ var ACCELERATOR = [
   ''
 ].join('\n');
 
-function buildAccel() {
+function gitHead() {
+  try {
+    return execFileSync('git', ['rev-parse', 'HEAD'], { cwd: ROOT, encoding: 'utf8' }).trim();
+  } catch (ignore) {
+    return '';
+  }
+}
+
+async function buildAccel() {
   var espackDir = join(ROOT, '..', 'espack');
   var espackBuild = join(espackDir, 'espack-build.mjs');
   var dll = join(ROOT, 'native', 'bin', 'ESB64Native.dll');
@@ -185,13 +193,34 @@ function buildAccel() {
   // contract/manifest-schema-v1) + the loader-free facade artifact for the
   // composer. Accel-only: no payloads, the shared ESB64Native accelerator is
   // the single "1" that every merged bundle shares.
+  var facadeOut = facadeText + '\n' + ACCELERATOR +
+    '// ESB64.facade.jsx - loader-free facade + espack adapter (composer appends to a merged bundle; requires ESPAK on $.global)\n';
+  writeFileSync(join(DIST, 'ESB64.facade.jsx'), facadeOut);
+  var packageInfo = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'));
+  var espackBuildApi = await import(new URL('../espack/espack-build.mjs', import.meta.url).href);
+  var espackLibraries = await import(new URL('../espack/espack-libraries.mjs', import.meta.url).href);
   var dllBytes = readFileSync(dll);
-  var accelManifest = {
-    format: 'espack-manifest',
-    version: 1,
+  var library = espackLibraries.libraryFromFile({
+    id: 'esb64',
+    version: packageInfo.version,
+    global: 'ESB64',
+    path: join(DIST, 'ESB64.facade.jsx'),
+    contract: [
+      { name: 'atob', type: 'function' },
+      { name: 'btoa', type: 'function' },
+      { name: 'utf8Decode', type: 'function' },
+      { name: 'utf8Encode', type: 'function' }
+    ],
+    provenance: {
+      package: packageInfo.name,
+      repository: packageInfo.repository && packageInfo.repository.url,
+      commit: gitHead(),
+      artifact: 'dist/ESB64.facade.jsx'
+    }
+  });
+  var accelManifest = espackBuildApi.makeManifest({
     bundleName: 'esb64',
     cacheDir: '',
-    chunkSize: 24576, // mirrors espack-build.mjs CHUNK_SIZE
     accel: {
       name: 'ESB64Native',
       version: '2',
@@ -199,12 +228,18 @@ function buildAccel() {
       b64: dllBytes.toString('base64'),
       fileName: 'ESB64Native_v2.dll'
     },
-    payloads: []
-  };
+    payloads: [],
+    libraries: [library],
+    entries: [{ id: 'esb64', range: '=' + packageInfo.version }],
+    capabilities: [{
+      id: 'esb64.native',
+      provider: 'esb64',
+      mode: 'optional',
+      payloads: [],
+      accel: 'ESB64Native'
+    }]
+  });
   writeFileSync(join(DIST, 'ESB64.manifest.json'), JSON.stringify(accelManifest, null, 2) + '\n');
-  var facadeOut = facadeText + '\n' + ACCELERATOR +
-    '// ESB64.facade.jsx - loader-free facade + espack adapter (composer appends to a merged bundle; requires ESPAK on $.global)\n';
-  writeFileSync(join(DIST, 'ESB64.facade.jsx'), facadeOut);
   var accelOut = bundleText + '\n' + facadeText + '\n' + ACCELERATOR +
     '// ESB64.accel.jsx - self-extracting single-file bundle (espack 1+n + ESB64 + accelerator)\n';
   writeFileSync(join(DIST, 'ESB64.accel.jsx'), accelOut);
@@ -250,7 +285,7 @@ estcBuild('./extendscript.runtime-vendor.estc.config.mjs');
 
 // 5. Accelerated self-extracting bundle (when the DLL + espack exist).
 if (process.argv.includes('--accel')) {
-  buildAccel();
+  await buildAccel();
 }
 
 console.log('[esb64-build] wrote ' + join(DIST, 'ESB64.jsx') + ', ' + join(DIST, 'vendor-esb64.js') + ', ' +

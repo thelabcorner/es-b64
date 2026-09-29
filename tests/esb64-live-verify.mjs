@@ -14,14 +14,13 @@
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { createLegacyComToolV2Runner } from '../../extendscript-toolchain/src/comtool-v2-compat.mjs';
+import { createComToolRunner } from '../../extendscript-toolchain/src/comtool-compat.mjs';
 
 var ROOT = dirname(fileURLToPath(import.meta.url));
 var PROJECT = join(ROOT, '..');
 var VENDOR = join(PROJECT, 'dist', 'vendor-esb64.js');
 var ACCEL = join(PROJECT, 'dist', 'ESB64.accel.jsx');
-var COM = createLegacyComToolV2Runner();
-process.on('exit', function () { try { COM.close(); } catch (ignore) {} });
+var COM = createComToolRunner();
 
 if (!existsSync(VENDOR)) {
   console.error('live-verify: build first (npm run build) - ' + VENDOR + ' missing');
@@ -148,7 +147,7 @@ var expectedJson = JSON.stringify(vectors);
 
 // ---- run one mode ------------------------------------------------------------
 
-function runMode(mode) {
+async function runMode(mode) {
   var srcPath = mode === 'native' ? ACCEL : VENDOR;
   var probeDir = join(process.env.TEMP || '', 'esb64-live');
   mkdirSync(probeDir, { recursive: true });
@@ -241,7 +240,7 @@ function runMode(mode) {
   console.log('live-verify [' + mode + ']: running ' + vectors.length + ' vectors in Illustrator...');
   var pyOut;
   try {
-    pyOut = COM.runText(
+    pyOut = await COM.runText(
       ['eval', '--file', probePath.replace(/\\/g, '/'), '--launch'],
       { timeoutMs: 180000 }
     );
@@ -284,7 +283,7 @@ function runMode(mode) {
 
 var results = {};
 for (var m = 0; m < modes.length; m++) {
-  results[modes[m]] = runMode(modes[m]);
+  results[modes[m]] = await runMode(modes[m]);
 }
 
 if (modes.length === 2) {
@@ -299,3 +298,5 @@ if (modes.length === 2) {
   console.log('parity: identical vector results in both modes (corpus-level check above)');
   void sameTimings;
 }
+
+await COM.close();
